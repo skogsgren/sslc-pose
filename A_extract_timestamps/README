@@ -1,0 +1,130 @@
+= README =
+
+Contains code for finding the timestamps for each file in a folder of subset
+video files, given another folder of raw video files. It is assumed that no
+other information is known (i.e. that the attribution is random) and every
+subset file is checked against every raw file unless it has already been found
+or if an early stopping threshold is met.
+
+= CONFIGURATION =
+
+cfg.json contains all the variables that change the way the program decides
+whether or not a clip is in a larger video file. It is also where you specify
+all the files and folders. I've included values that work well in my testing
+(well, except for the absolute paths to directories).
+
+A brief overview of what all the variables are and what they are supposed to
+contain follows:
+
+cache_dir
+    Absolute path to directory where all files will be cached. NOTE: the cache
+    can get big so use a path with available space.
+
+pred_dir
+    Absolute path to directory where predictions will be placed. These
+    predictions include JSON files of the values used when deciding
+    clip attribution as well as a plot of the distance function for
+    troubleshooting. Inside the pred_dir you will find the result.json file
+    containing overview attribution info for all raw files.
+
+raw_video_files
+    List of absolute paths to each raw file
+
+subset_video_files
+    List of absolute paths to each clip that will be checked against the raw
+    files.
+
+workers
+    The number of simultaneous processes allowed at one time. Increase to make
+    faster at the cost of memory and CPU. NOTE: a higher value than 8 uses
+    >32GB of RAM for raw files >10GB. Set to 0 to dynamically set workers to
+    amount of available CPU cores.
+
+n_comparison
+    Frame offset from the minimum frame mean. Increase to compensate for
+    lossier video at the cost of false positives.
+
+match_decision_boundary
+    Decision boundary when calculating video clip attribution.  Decrease to get
+    more matches at the cost of false positives.
+
+early_stopping_threshold
+    Value at which the calculation loop for each sliding window stops. Increase
+    to increase accuracy at the cost of increased computation.
+
+step
+    Number of frames between sliding window ranges. Lower to increase accuracy
+    of final result at the cost of increased computation.
+
+skip_factor
+    Value for each sliding window range that is picked out. For example, if the
+    range [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] is selected then with a skip_factor
+    of 2 the list used for calculating distances is [1, 3, 5, 7, 9]. Lower to
+    increase accuracy at the cost of increased computation.
+
+abs_intro_length
+    Number of frames that the intro is guaranteed to have. Is used when
+    determining the offset of each clip.
+
+abs_outro_length
+    Number of frames that the outro is guaranteed to have. Is used when
+    determining the offset of each clip.
+
+= DECISION FUNCTION =
+
+The decision function uses the fact that the plot of the distance function
+between >>mean(original_frame) - mean(subset_frame)<< will in true positives
+contain a small amount of frames with a very small value which then quickly
+normalizes. Thus attribution is based on the following function (see
+CONFIGURATION above for the meaning of the variables).
+
+== PSEUDOCODE ==
+
+>> SORT(distances)
+>> clip IN raw IF distances[n_comparison] - distances[0] > match_decision_boundary
+
+== PYTHON CODE ==
+
+>> f_arr: list = sorted(list(distances.values()))
+>> in_original: int = 1 if (f_arr[n_comparison] - f_arr[0]) > decision_boundary else 0
+
+= NOTE ON LOGGING =
+
+Because decord (the library used for decoding videofiles) seems to print every
+time it encounters a bad frame, the console can quickly fill up with
+'concealing bitstream errors' and I have no idea how to remove this (and I'm
+lazy), so instead all messages are logged to a file ./runtime.log which I'll
+refer to for troubleshooting. This doesn't happen for a lot of files but the
+message doesn't seem to clear on its own*.
+
+* What I ended up doing was reencoding the few files for which this occured,
+but I kept the logging instead of printing.
+
+= DATA STRUCTURES =
+
+== {pred_dir}/raw.json ==
+
+{
+    ABSOLUTE_FILEPATH_OF_RAW_FILE: [LIST_OF_SUBSET_MATCHING_RAW_FILE],
+    ...
+}
+
+= ALGORITHM DESCRIPTION =
+
+Before running the algorithm, `main.py` first iterates all keys in
+{pred_dir}/raw.json to remove all raw files already checked, as well as
+removing any subset in subsets for that raw file, in case you're resuming a
+previous run.
+
+FOREACH raw_file IN raw_files
+    1 IF NOT cached(raw_file)
+        1 generate dense numpy array
+        2 save dense numpy array to disk
+    2 FOREACH subset_file IN subset_files
+        1 IF NOT cached(subset_file)
+            1 generate dense numpy array
+            2 save dense numpy array to disk
+        2 generate timestamps; check if subset is match
+        3 save timestamps and prediction results to disk
+        4 IF match(raw_file, subset_file)
+            1 REMOVE subset_file FROM subset_files

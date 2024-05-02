@@ -1,0 +1,6 @@
+{
+    "eaf_annotations": "../C_match_elan_annotations/export/240404-1037-eaf_annotation_export.json",
+    "pose_inference_path": "../D_mmpose_inferences/pred/",
+    "subset_path": "../../sts-korpus/",
+    "output_dir": "./output"
+}

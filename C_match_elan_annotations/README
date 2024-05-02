@@ -1,0 +1,15 @@
+Contains code for extracting ELAN annotations for SSLC files to a JSON file
+that is more easily parsed programmatically. The structure of the JSON file
+looks like this:
+
+{
+    clip_name: [
+        {start: TIMESTAMP, end: TIMESTAMP, annotation: GLOSS},
+        ...
+        ]
+}
+
+This is then used in the ../E_combine_dataset to match up the annotations to
+the pose inference information.
+
+See documentation in parse.py and cfg.json for further details.

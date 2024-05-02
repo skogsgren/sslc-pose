@@ -1,0 +1,20 @@
+{
+  "workers": 4,
+  "n_comparison": 5,
+  "match_decision_boundary": 0.92,
+  "early_stopping_threshold": 32,
+  "step": 4,
+  "skip_factor": 5,
+  "abs_intro_length": 106,
+  "abs_outro_length": 250,
+  "cache_dir": "./cache",
+  "pred_dir": "./pred",
+  "raw_video_files": [
+      "path_to_raw_video_1.mp4",
+      "path_to_raw_video_2.mp4"
+  ],
+  "subset_video_files": [
+      "path_to_subset_video_1.mp4",
+      "path_to_subset_video_2.mp4"
+  ]
+}

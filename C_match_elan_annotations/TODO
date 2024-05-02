@@ -1,0 +1,2 @@
+- write dynamic export_offsets function to generate an offset file given
+  information from ../A_extract_timestamps

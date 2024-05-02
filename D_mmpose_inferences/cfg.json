@@ -1,0 +1,7 @@
+{
+    "workers": 2,
+    "script_path": "$MMPOSE/demo/inferencer_demo.py",
+    "model_name": "wholebody",
+    "input_dir": "../B_ffmpeg_trim/export/",
+    "pred_dir": "./pred"
+}
