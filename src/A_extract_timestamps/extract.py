@@ -1,19 +1,17 @@
-"""
-extract.py contains functions for extracting timestamps from a videofile, as well as some
-functions for troubleshooting. with the exception of export_first_last_frames, all the
-rest of the functions should be platform independent since they rely on pathlib.
-"""
-
-from decord import VideoReader
+__doc__ = """ extract.py contains functions for extracting timestamps from a
+videofile, as well as some functions for troubleshooting. with the exception of
+export_first_last_frames, all the rest of the functions should be platform
+independent since they rely on pathlib. """
+import logging
 from pathlib import Path
-import numpy as np
-import json
 from datetime import timedelta
+import json
+import numpy as np
+from decord import VideoReader
 import matplotlib.pyplot as plt
 from PIL import Image
 from numba import njit
 
-import logging
 
 logging.basicConfig(
     filename="runtime.log",
@@ -56,14 +54,14 @@ def find_offsets(
     logging.info(f"finding end offset for {vp}")
     end_offset: int = -1
     for i in range((len(vr) - abs_outro_length), len(vr)):
-        frame: np.ndarray = np.mean(vr[i].asnumpy(), axis=-1, dtype=int)
-        sum_of_color_values: int = np.mean(frame).astype(int)
+        frame = np.mean(vr[i].asnumpy(), axis=-1, dtype=int)
+        sum_of_color_values = np.mean(frame).astype(int)
         if sum_of_color_values <= cutoff_boundary:
             end_offset = i
             break
     if cache_dir is not None:
         im = Image.fromarray(vr[i].asnumpy())
-        fn: str = f"{Path(vp).name}_last_frame.jpg"
+        fn = f"{Path(vp).name}_last_frame.jpg"
         im.save(f"{cache_dir.joinpath(fn)}")
 
     return {"start_offset": start_offset, "end_offset": end_offset}
@@ -72,13 +70,14 @@ def find_offsets(
 def readVideoFile(
     vp: str, start_offset: int = 0, end_offset: int | None = None
 ) -> np.ndarray:
-    """given path to video file returns arr of reduced res b/w numpy representations"""
+    """given path to video file returns arr of reduced res b/w numpy
+    representations"""
     logging.info(f"readVideoFile: creating VideoReader with {vp}")
     vr: VideoReader = VideoReader(vp, width=160, height=90)  # assuming 16:9
     if end_offset is not None:
         desired_frames: list[int] = list(range(start_offset, end_offset))
     else:
-        desired_frames: list[int] = list(range(start_offset, len(vr)))
+        desired_frames = list(range(start_offset, len(vr)))
     logging.info(
         f"readVideoFile: extracting desired_frames for {vp} using get_batch"
     )
@@ -99,9 +98,9 @@ def get_pred_suffix(ovp: Path) -> str:
     if len(parentparent + parent + ovp.stem) < 255:
         raw_file_pred_suffix: str = f"{parentparent}_{parent}_{ovp.stem}"
     elif len(parent + ovp.stem) < 255:
-        raw_file_pred_suffix: str = f"{parent}_{ovp.stem}"
+        raw_file_pred_suffix = f"{parent}_{ovp.stem}"
     else:
-        raw_file_pred_suffix: str = f"{ovp.stem}"
+        raw_file_pred_suffix = f"{ovp.stem}"
     return raw_file_pred_suffix
 
 
