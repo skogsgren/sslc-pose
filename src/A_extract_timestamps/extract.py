@@ -59,10 +59,10 @@ def find_offsets(
         if sum_of_color_values <= cutoff_boundary:
             end_offset = i
             break
-    if cache_dir is not None:
-        im = Image.fromarray(vr[i].asnumpy())
-        fn = f"{Path(video_path).name}_last_frame.jpg"
-        im.save(f"{cache_dir.joinpath(fn)}")
+        if cache_dir is not None:
+            im = Image.fromarray(vr[i].asnumpy())
+            fn = f"{Path(video_path).name}_last_frame.jpg"
+            im.save(f"{cache_dir.joinpath(fn)}")
 
     return {"start_offset": start_offset, "end_offset": end_offset}
 
