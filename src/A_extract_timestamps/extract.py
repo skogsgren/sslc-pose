@@ -189,7 +189,7 @@ def extract_timestamps(
         for i in window_ranges:
             distances[i] = distance(
                 original_matrix[
-                    i: i + subset_matrix.shape[0]: ofps * skip_factor
+                    i : i + subset_matrix.shape[0] : ofps * skip_factor
                 ],
                 subset_matrix[:: ofps * skip_factor],
             )
@@ -231,8 +231,9 @@ def extract_timestamps(
     plt.xlabel("x")
     plt.ylabel("f(x)")
     plt.title(f"distance {subset_path.name} > {original_path.name}")
-    plt.savefig(raw_pred_dir.joinpath(
-        Path(subset_path.name).with_suffix(".png")))
+    plt.savefig(
+        raw_pred_dir.joinpath(Path(subset_path.name).with_suffix(".png"))
+    )
     plt.close()
 
     sorted_idx = sorted(d, key=lambda x: d[x])

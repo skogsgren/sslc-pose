@@ -1,19 +1,36 @@
-"""
+__doc__ = """
 main.py is a CLI wrapper around extract.py in order to extract timestamps using
 config present in ./cfg.json (by default, though the main function accepts
 another path)
+
+it is primarily meant to be used for a number of unsorted clips and raw video
+files, in which you only need envoke this from the command line like so after
+editing cfg.json (see README for configuration options):
+    python3 main.py
+
+you can also use it on a single clip and single raw file like so:
+    python3 main.py -r RAW_FILE -c CLIP
+
+this assumes that the clip has no offsets (i.e. it doesn't have an
+intro/outro). provide this with the flags --start_offset and --end_offset
+if needed:
+    python3 main.py -r RAW_FILE -c CLIP --start_offset FRAME_NUMBER \
+    --end_offset FRAME_NUMBER
 """
 
-import json
-from pathlib import Path
-import decord
-from extract import extract_timestamps, read_video_file
+import argparse
 import concurrent.futures
-from tqdm import tqdm
-import numpy as np
 import gc
-
+import json
 import logging
+import sys
+from pathlib import Path
+
+import decord
+import numpy as np
+from tqdm import tqdm
+
+from extract import extract_timestamps, read_video_file
 
 logging.basicConfig(
     filename="runtime.log",
@@ -57,11 +74,13 @@ def main(cfgp: str = "./cfg.json") -> None:
 
     if pred_dir.joinpath("results.json").exists():
         logging.info(
-            "found previous results.json file; resuming previous run...")
+            "found previous results.json file; resuming previous run..."
+        )
         with open(pred_dir.joinpath("results.json"), "r") as f:
             tmp: dict[str, list[str]] = json.load(f)
         raw_video_files = [
-            x for x in raw_video_files if x not in list(tmp.keys())]
+            x for x in raw_video_files if x not in list(tmp.keys())
+        ]
         i: list[str]
         for i in tmp.values():
             subset_video_files = [x for x in subset_video_files if x not in i]
@@ -97,9 +116,11 @@ def main(cfgp: str = "./cfg.json") -> None:
 
         with tqdm(total=len(subset_video_files)) as pbar:
             with concurrent.futures.ProcessPoolExecutor(
-                max_workers=cfg["workers"]
-                if cfg.get("workers", None) is not None
-                else None
+                max_workers=(
+                    cfg["workers"]
+                    if cfg.get("workers", None) is not None
+                    else None
+                )
             ) as executor:
                 timestamps: list = []
                 for subset_file in subset_video_files:
@@ -142,4 +163,39 @@ def main(cfgp: str = "./cfg.json") -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="determines clip attribution and timestamps for clips",
+        usage=__doc__,
+    )
+    parser.add_argument("-r", "--raw_file", help="path to raw file")
+    parser.add_argument("-c", "--clip", help="path to clip")
+    parser.add_argument(
+        "--start_offset", default=0, help="start clip offset in frames"
+    )
+    parser.add_argument(
+        "--end_offset", default=50, help="end clip offset in frames"
+    )
+    args = parser.parse_args()
+    if not (args.raw_file or args.clip):
+        main()
+    if not (args.raw_file and args.clip):
+        parser.print_help()
+        sys.exit(1)
+    if not Path("pred").exists():
+        Path("pred").mkdir()
+    print(
+        f"seeing if {args.clip} is in {args.raw_file} and where.\n"
+        "This could take a while..."
+    )
+    timestamps = extract_timestamps(
+        Path(args.raw_file),
+        read_video_file(args.raw_file),
+        Path(args.clip),
+        abs_intro_length=args.start_offset,
+        abs_outro_length=args.end_offset,
+        skip_factor=1,
+    )
+    if timestamps is None:
+        print("ERROR: clip doesn't appear to be in raw video file")
+        sys.exit(1)
+    print({x: y for x, y in timestamps.items() if x != "fx"})
