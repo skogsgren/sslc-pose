@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from src.A_extract_timestamps.extract import readVideoFile
+from src.A_extract_timestamps.extract import read_video_file
 
 
 def test_video_representation():
@@ -10,7 +10,7 @@ def test_video_representation():
     }
     for test_file, offsets in files.items():
         test_arr = np.load(Path(test_file).with_suffix(".npy"))
-        read_arr = readVideoFile(
+        read_arr = read_video_file(
             test_file,
             start_offset=offsets["start_offset"],
             end_offset=offsets["end_offset"],

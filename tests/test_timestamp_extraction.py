@@ -1,5 +1,5 @@
 from pathlib import Path
-from src.A_extract_timestamps.extract import extract_timestamps, readVideoFile
+from src.A_extract_timestamps.extract import extract_timestamps, read_video_file
 
 
 def test_extract_timestamps():
@@ -9,7 +9,7 @@ def test_extract_timestamps():
     ]:
         timestamps = extract_timestamps(
             Path(raw_file),
-            readVideoFile(raw_file),
+            read_video_file(raw_file),
             Path(subset_file),
             early_stopping_threshold=100,
             step=1,

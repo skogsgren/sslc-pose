@@ -8,7 +8,7 @@ from pathlib import Path
 from pprint import pprint
 
 import decord
-from extract import extract_timestamps, readVideoFile
+from extract import extract_timestamps, read_video_file
 import concurrent.futures
 from tqdm import tqdm
 import numpy as np
@@ -57,10 +57,12 @@ def main(cfgp: str = "./cfg.json") -> None:
         pred_dir.mkdir()
 
     if pred_dir.joinpath("results.json").exists():
-        logging.info("found previous results.json file; resuming previous run...")
+        logging.info(
+            "found previous results.json file; resuming previous run...")
         with open(pred_dir.joinpath("results.json"), "r") as f:
             tmp: dict[str, list[str]] = json.load(f)
-        raw_video_files = [x for x in raw_video_files if x not in list(tmp.keys())]
+        raw_video_files = [
+            x for x in raw_video_files if x not in list(tmp.keys())]
         i: list[str]
         for i in tmp.values():
             subset_video_files = [x for x in subset_video_files if x not in i]
@@ -77,7 +79,7 @@ def main(cfgp: str = "./cfg.json") -> None:
             logging.info(f"{cached_raw_file} not found.")
             logging.info(f"creating matrix for {raw_file}")
             try:
-                original_matrix: np.ndarray = readVideoFile(raw_file)
+                original_matrix: np.ndarray = read_video_file(raw_file)
                 np.save(str(cached_raw_file), original_matrix)
             except decord.DECORDError:
                 logging.error(
