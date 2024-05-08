@@ -1,12 +1,11 @@
 """
 main.py is a CLI wrapper around extract.py in order to extract timestamps using
-config present in ./cfg.json (by default, though the main function accepts another path)
+config present in ./cfg.json (by default, though the main function accepts
+another path)
 """
 
 import json
 from pathlib import Path
-from pprint import pprint
-
 import decord
 from extract import extract_timestamps, read_video_file
 import concurrent.futures
@@ -83,7 +82,8 @@ def main(cfgp: str = "./cfg.json") -> None:
                 np.save(str(cached_raw_file), original_matrix)
             except decord.DECORDError:
                 logging.error(
-                    f"{raw_file} file cannot be processed (possibly damaged). ignoring..."
+                    f"{raw_file} file cannot be processed"
+                    "(possibly damaged). ignoring..."
                 )
                 with open(pred_dir.joinpath("results.json"), "r") as f:
                     res: dict = json.load(f)
