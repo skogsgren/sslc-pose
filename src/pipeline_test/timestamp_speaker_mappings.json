@@ -1,0 +1,23 @@
+{
+  "4": {
+    "raw_dir": "./data/raw/",
+    "subset_video_files": [
+      "./data/crop/clip/SSLC02_026_S004_b.mp4",
+      "./data/crop/clip/SSLC02_027_S004_b.mp4"
+    ],
+    "raw_files": [
+      "./data/raw/4_Elic.mov"
+    ]
+  },
+  "6": {
+    "raw_dir": "./data/raw/",
+    "subset_video_files": [
+      "./data/crop/clip/SSLC02_047_S006_b.mp4",
+      "./data/crop/clip/SSLC02_048_S006_b.mp4",
+      "./data/crop/clip/SSLC02_049_S006_b.mp4"
+    ],
+    "raw_files": [
+      "/home/gustafgren/sslc/pipeline_test/data/raw/Diana_J-1.mov"
+    ]
+  }
+}

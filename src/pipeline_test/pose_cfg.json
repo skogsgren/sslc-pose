@@ -1,0 +1,7 @@
+{
+    "workers": 1,
+    "script_path": "$MMPOSE/demo/inferencer_demo.py",
+    "model_name": "wholebody",
+    "input_dir": "./out/sslc/",
+    "pred_dir": "./out/pose/"
+}

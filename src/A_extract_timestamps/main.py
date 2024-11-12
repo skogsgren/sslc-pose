@@ -1,36 +1,22 @@
 __doc__ = """
-main.py is a CLI wrapper around extract.py in order to extract timestamps using
-config present in ./cfg.json (by default, though the main function accepts
-another path)
-
-it is primarily meant to be used for a number of unsorted clips and raw video
-files, in which you only need envoke this from the command line like so after
-editing cfg.json (see README for configuration options):
-    python3 main.py
-
-you can also use it on a single clip and single raw file like so:
-    python3 main.py -r RAW_FILE -c CLIP
-
-this assumes that the clip has no offsets (i.e. it doesn't have an
-intro/outro). provide this with the flags --start_offset and --end_offset
-if needed:
-    python3 main.py -r RAW_FILE -c CLIP --start_offset FRAME_NUMBER \
-    --end_offset FRAME_NUMBER
+main.py is a CLI wrapper around double_pass_extract.py in order to extract
+timestamps using config present in ./cfg.json (by default, though the main
+function accepts another path)
 """
 
-import argparse
-import concurrent.futures
-import gc
 import json
-import logging
-import sys
 from pathlib import Path
 
 import decord
-import numpy as np
+from double_pass_extract import double_pass_timestamp_extraction, read_video_file
+import concurrent.futures
 from tqdm import tqdm
+import numpy as np
+import argparse
 
-from extract import extract_timestamps, read_video_file
+import logging
+
+from utils import naming_function
 
 logging.basicConfig(
     filename="runtime.log",
@@ -38,21 +24,6 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(message)s",
 )
-
-
-def update_raw_json(pred_dir: Path, rfp: Path, matches: list[str]) -> None:
-    """helper function to update the result json"""
-    logging.info(f"writing matches for {rfp} to {pred_dir}/results.json")
-    if pred_dir.joinpath("results.json").exists():
-        with open(pred_dir.joinpath("results.json"), "r") as f:
-            jsr: dict = json.load(f)
-    else:
-        jsr: dict = {}
-    logging.info(f"setting k/v pairs in raw.json for {rfp}")
-    jsr[str(rfp.absolute())] = matches
-
-    with open(pred_dir.joinpath("results.json"), "w") as f:
-        json.dump(jsr, f)
 
 
 def main(cfgp: str = "./cfg.json") -> None:
@@ -64,138 +35,83 @@ def main(cfgp: str = "./cfg.json") -> None:
         cfg: dict = json.load(f)
     cache_dir: Path = Path(cfg["cache_dir"])
     pred_dir: Path = Path(cfg["pred_dir"])
-    raw_video_files: list[str] = cfg["raw_video_files"]
-    subset_video_files: list[str] = cfg["subset_video_files"]
-
     if not cache_dir.exists():
         cache_dir.mkdir()
     if not pred_dir.exists():
         pred_dir.mkdir()
 
-    if pred_dir.joinpath("results.json").exists():
-        logging.info(
-            "found previous results.json file; resuming previous run..."
-        )
-        with open(pred_dir.joinpath("results.json"), "r") as f:
-            tmp: dict[str, list[str]] = json.load(f)
-        raw_video_files = [
-            x for x in raw_video_files if x not in list(tmp.keys())
-        ]
-        i: list[str]
-        for i in tmp.values():
-            subset_video_files = [x for x in subset_video_files if x not in i]
-
-    raw_file: str
-    for raw_file in tqdm(raw_video_files):
-        matches: list[str] = []
-
-        cached_raw_file: Path = cache_dir.joinpath(
-            Path(Path(raw_file).name).with_suffix(".npy")
-        )
-        logging.info(f"checking if {cached_raw_file} exists...")
-        if not cached_raw_file.exists():
-            logging.info(f"{cached_raw_file} not found.")
-            logging.info(f"creating matrix for {raw_file}")
-            try:
-                original_matrix: np.ndarray = read_video_file(raw_file)
-                np.save(str(cached_raw_file), original_matrix)
-            except decord.DECORDError:
-                logging.error(
-                    f"{raw_file} file cannot be processed"
-                    "(possibly damaged). ignoring..."
-                )
-                with open(pred_dir.joinpath("results.json"), "r") as f:
-                    res: dict = json.load(f)
-                res[raw_file] = ["damaged"]
-                with open(pred_dir.joinpath("results.json"), "w") as f:
-                    json.dump(res, f)
-                continue
-        else:
-            logging.info(f"found existing matrix for {raw_file}")
-            original_matrix: np.ndarray = np.load(cached_raw_file)
-
-        with tqdm(total=len(subset_video_files)) as pbar:
+    with open(cfg["speaker_video_mappings"], "r") as f:
+        speaker_video_mappings: dict = {
+            int(sid): mappings for sid, mappings in json.load(f).items()
+        }
+    if pred_dir.joinpath("progress.json").exists():
+        logging.info("resuming previous run...")
+        with open(pred_dir / "progress.json", "r") as f:
+            already_checked_ids = json.load(f)
+        for speaker_id in already_checked_ids:
+            if speaker_id in list(speaker_video_mappings.keys()):
+                del speaker_video_mappings[speaker_id]
+    for speaker_id, video_mappings in tqdm(speaker_video_mappings.items()):
+        for i, raw_file in enumerate(sorted(video_mappings["raw_files"])):
+            logging.info(
+                f"{i+1}/{len(video_mappings['raw_files'])}"
+                " "
+                f"PROCESSING {Path(raw_file).name} for ID={speaker_id}"
+            )
+            cached_raw_file: Path = cache_dir.joinpath(
+                naming_function(Path(raw_file)) + ".npy"
+            )
+            if not cached_raw_file.exists():
+                logging.info(f"{cached_raw_file} not found.")
+                logging.info(f"creating matrix for {raw_file}")
+                try:
+                    original_matrix: np.ndarray = read_video_file(raw_file)
+                    np.save(str(cached_raw_file), original_matrix)
+                except decord.DECORDError:
+                    logging.error(f"{raw_file} file is damaged. ignoring...")
+                    continue
+            else:
+                logging.info(f"found existing matrix for {raw_file}")
+                original_matrix: np.ndarray = np.load(cached_raw_file)
             with concurrent.futures.ProcessPoolExecutor(
-                max_workers=(
-                    cfg["workers"]
-                    if cfg.get("workers", None) is not None
-                    else None
-                )
+                max_workers=cfg["workers"] if cfg.get("workers") else None
             ) as executor:
                 timestamps: list = []
-                for subset_file in subset_video_files:
+                for clip in video_mappings["subset_video_files"]:
                     timestamps.append(
                         executor.submit(
-                            extract_timestamps,
+                            double_pass_timestamp_extraction,
                             Path(raw_file),
                             original_matrix,
-                            Path(subset_file),
+                            Path(clip),
                             cache_dir,
                             cfg["match_decision_boundary"],
                             pred_dir,
-                            cfg["abs_intro_length"],
-                            cfg["abs_outro_length"],
                             cfg["early_stopping_threshold"],
-                            cfg["step"],
-                            cfg["skip_factor"],
                             cfg["n_comparison"],
                         )
                     )
 
-                for f in concurrent.futures.as_completed(timestamps):
-                    if f.result() is None:
-                        pbar.update(1)
-                        logging.info("skipping...")
-                        continue
-                    t: dict = f.result()
-                    if t["in_original"] == 1:
-                        subset_video_files = [
-                            x for x in subset_video_files if x != t["filename"]
-                        ]
-                        matches.append(t["filename"])
-                        pbar.update(1)
+        if not (pred_dir / "progress.json").exists():
+            with open(pred_dir / "progress.json", "w") as f:
+                json.dump([], f)
+        with open(pred_dir / "progress.json", "r") as f:
+            progress = json.load(f)
+        progress.append(speaker_id)
+        with open(pred_dir / "progress.json", "w") as f:
+            json.dump(progress, f)
 
-        update_raw_json(rfp=Path(raw_file), matches=matches, pred_dir=pred_dir)
-        # trying to get to the bottom of memory leak problematics
-        del original_matrix
-        gc.collect()
     logging.info("FINISHED RUN")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="determines clip attribution and timestamps for clips",
-        usage=__doc__,
-    )
-    parser.add_argument("-r", "--raw_file", help="path to raw file")
-    parser.add_argument("-c", "--clip", help="path to clip")
+    parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--start_offset", default=0, help="start clip offset in frames"
-    )
-    parser.add_argument(
-        "--end_offset", default=50, help="end clip offset in frames"
+        "-c",
+        "--cfg",
+        type=str,
+        default="./cfg.json",
+        help="path to config json (default=./cfg.json)",
     )
     args = parser.parse_args()
-    if not (args.raw_file or args.clip):
-        main()
-    if not (args.raw_file and args.clip):
-        parser.print_help()
-        sys.exit(1)
-    if not Path("pred").exists():
-        Path("pred").mkdir()
-    print(
-        f"seeing if {args.clip} is in {args.raw_file} and where.\n"
-        "This could take a while..."
-    )
-    timestamps = extract_timestamps(
-        Path(args.raw_file),
-        read_video_file(args.raw_file),
-        Path(args.clip),
-        abs_intro_length=args.start_offset,
-        abs_outro_length=args.end_offset,
-        skip_factor=1,
-    )
-    if timestamps is None:
-        print("ERROR: clip doesn't appear to be in raw video file")
-        sys.exit(1)
-    print({x: y for x, y in timestamps.items() if x != "fx"})
+    main(args.cfg)

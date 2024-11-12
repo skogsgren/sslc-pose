@@ -1,7 +1,0 @@
-Contains code for trimming a folder of video files using FFMPEG and a set of
-timestamps for each video file in that folder.
-
-NOTE: the current implementation simply calls FFMPEG using subprocess.run since
-I couldn't get the FFMPEG python module to work quite as I wanted.
-
-See ffmpeg_trim.py and cfg.json for more details.

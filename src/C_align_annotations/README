@@ -1,0 +1,4 @@
+Contains code for extracting ELAN annotations for SSLC files to JSON
+files that can more easily be parsed programmatically.
+
+See documentation in parse.py.

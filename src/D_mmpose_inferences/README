@@ -1,5 +1,2 @@
-contains code for running MMPOSE inferences in parallel on a folder of video
-files. 
-
-see the documentation of parallell_inferences.py, and cfg.json for
-possible configuration.
+Contains code for running MMPOSE inferences in parallel on a folder of
+video files. See the documentation of parallell_inferences.py.

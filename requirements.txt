@@ -1,5 +1,7 @@
 openmim
+numpy==1.24.6
 decord==0.6.0
 torch
-pytest
+torchvision
 numba
+matplotlib

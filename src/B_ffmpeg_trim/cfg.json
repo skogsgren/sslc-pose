@@ -1,5 +1,0 @@
-{
-  "pred_dir": "../A_extract_timestamps/pred",
-  "results_json": "../A_extract_timestamps/pred/results.json",
-  "export_dir": "./export"
-}

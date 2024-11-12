@@ -1,0 +1,9 @@
+{
+  "workers": 2,
+  "n_comparison": 5,
+  "match_decision_boundary": 0.7,
+  "early_stopping_threshold": 100,
+  "cache_dir": "./cache",
+  "pred_dir": "./pred",
+  "speaker_video_mappings": "./timestamp_speaker_mappings_crop.json"
+}
