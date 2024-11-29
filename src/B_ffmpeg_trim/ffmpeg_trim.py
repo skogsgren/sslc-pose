@@ -38,7 +38,11 @@ def trim_wrapper(
     for raw_file, matching_clips in matches.items():
         raw_pred_dir: Path = pred_dir.joinpath(naming_function(Path(raw_file)))
         if cropped_input_mappings:
-            raw_file = cropped_input_mappings[raw_file]
+            try:
+                raw_file = cropped_input_mappings[raw_file]
+            except KeyError:
+                print(f"-- ** ERR: can't find {raw_file} in cropped_input_mappings")
+                continue
         for clip in matching_clips:
             clip_json_path = raw_pred_dir.joinpath(Path(clip).with_suffix(".json").name)
             if not clip_json_path.exists():
