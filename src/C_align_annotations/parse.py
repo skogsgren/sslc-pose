@@ -38,11 +38,17 @@ def parse(eaf_file: Path, clip_file: Path, start_offset: int) -> list | None:
             3: unknown (is always set to None?)
     """
     if not parser.tiers.get(f"Glosa_DH S{speaker_id}"):
-        print(
-            f"KEY_ERROR for {clip_file.name}; check eaf 'Glosa_DH S{speaker_id}' field"
-        )
-        print(f"\tPossible media files: {media_files}")
-        return None
+        if speaker_id == 3:
+            print(
+                f"{clip_file.name}; speaker_id=3, len(glosa_DH) == 2; trying 'Glosa_DH S2' instead..."
+            )
+            speaker_id = 2
+        else:
+            print(
+                f"KEY_ERROR for {clip_file.name}; check eaf 'Glosa_DH S{speaker_id}' field"
+            )
+            print(f"\tPossible media files: {media_files}")
+            return None
     ignore_counter = 0
     for _, annotation in parser.tiers[f"Glosa_DH S{speaker_id}"][0].items():
         start = parser.timeslots[annotation[0]] - start_offset
@@ -157,7 +163,9 @@ if __name__ == "__main__":
         )
 
         if not annotations:
-            print("ERR: something went wrong during extraction of annotations")
+            print(
+                f"ERR: something went wrong during extraction of annotations for {clip.name}"
+            )
         else:
             with open(output_dir / clip.with_suffix(".json").name, "w") as f:
                 json.dump(annotations, f)
