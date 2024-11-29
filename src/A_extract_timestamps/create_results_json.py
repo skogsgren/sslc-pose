@@ -13,12 +13,18 @@ import re
 from pathlib import Path
 from collections import defaultdict, Counter
 from tqdm import tqdm
+import pandas as pd
 import argparse
 
 
 def esi(fn: str) -> int:
     """extracts speaker id from path object"""
     return int(re.findall(r"\d+", Path(fn).name)[-1])
+
+
+def vidx(fn: str) -> int:
+    """extracts video id from path object"""
+    return int("".join(re.findall(r"\d+", Path(fn).name)[:2]))
 
 
 def get_top_candidates(clip: str, pred_dir: Path):
@@ -35,6 +41,7 @@ def get_top_candidates(clip: str, pred_dir: Path):
                 candidate_data["in_original_calc"],
                 candidate_data["filename"],
                 candidate_data["raw_file"],
+                candidate_data["timestamps"],
             )
         )
     return sorted(candidate_scores, reverse=True)
@@ -74,7 +81,9 @@ def generate_entries(pred_dir: Path, cfg_path: str) -> dict:
             entries[esi(clip)]["unmatched_clips"].append(top_candidates[0])
 
         for m in ["unmatched_clips", "matched_clips"]:
-            entries[esi(clip)][m] = sorted(entries[esi(clip)][m], key=lambda x: x[1])
+            entries[esi(clip)][m] = sorted(
+                entries[esi(clip)][m], key=lambda x: vidx(x[1])
+            )
     return entries
 
 
@@ -113,12 +122,44 @@ def recursive_get_raw_files(attrib_json: Path) -> dict:
     return {int(k): v for k, v in sorted(attributions.items())}
 
 
+def correct_entries_using_annotated_csv(entries: dict, csv_path: Path) -> dict:
+    """corrects the entries dict according to annotated csv file"""
+    df: pd.DataFrame = pd.read_csv(csv_path, comment="#")
+    mutated_entries: dict = {}
+    for speaker_id, entry in entries.items():
+        mutated_entries[speaker_id] = {
+            "matched_clips": [],
+            "unmatched_clips": [],
+        }
+
+        entry_clips = entry["unmatched_clips"] + entry["matched_clips"]
+        for clip in entry_clips:
+            clip_path = Path(clip[1])
+            label = df.loc[df["FILENAME"] == clip_path.name]["LABEL"]
+            if int(label) == 0:
+                mutated_entries[speaker_id]["matched_clips"].append(clip)
+            else:
+                mutated_entries[speaker_id]["unmatched_clips"].append(clip)
+
+        for m in ["unmatched_clips", "matched_clips"]:
+            mutated_entries[speaker_id][m] = sorted(
+                mutated_entries[speaker_id][m], key=lambda x: vidx(x[1])
+            )
+    return mutated_entries
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--cfg", default="cfg.json")
+    parser.add_argument("--annotated_corrections")
     parser.add_argument("dir")
     args = parser.parse_args()
     out = Path(args.dir)
     entries = generate_entries(out, cfg_path=args.cfg)
+    if args.annotated_corrections:
+        entries = correct_entries_using_annotated_csv(
+            entries=entries,
+            csv_path=Path(args.annotated_corrections),
+        )
     with open(out / "entries.json", "w") as f:
         json.dump(entries, f)
